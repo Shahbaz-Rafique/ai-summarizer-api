@@ -96,7 +96,7 @@ function errorHandler(err, req, res, next) {
 
 // Sanitize IP addresses for GDPR compliance (anonymize last octet)
 function sanitizeIP(ip) {
-  if (!ip) return 'unknown';
+  if (!ip) { return 'unknown'; }
 
   // IPv4
   if (ip.includes('.')) {
@@ -110,7 +110,7 @@ function sanitizeIP(ip) {
   if (ip.includes(':')) {
     const parts = ip.split(':');
     if (parts.length >= 4) {
-      return parts.slice(0, 4).join(':') + ':xxxx:xxxx:xxxx:xxxx';
+      return `${parts.slice(0, 4).join(':')}:xxxx:xxxx:xxxx:xxxx`;
     }
   }
 
@@ -119,7 +119,7 @@ function sanitizeIP(ip) {
 
 // Sanitize error messages to prevent information disclosure
 function sanitizeErrorMessage(message) {
-  if (!message) return 'An error occurred';
+  if (!message) { return 'An error occurred'; }
 
   // Remove file paths
   message = message.replace(/\/[^\s]+\.(js|ts|json)/g, '[file]');
@@ -136,7 +136,7 @@ function sanitizeErrorMessage(message) {
 
   // Truncate very long messages
   if (message.length > 200) {
-    message = message.substring(0, 200) + '...';
+    message = `${message.substring(0, 200)}...`;
   }
 
   return message.trim();

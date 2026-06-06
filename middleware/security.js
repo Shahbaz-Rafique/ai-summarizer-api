@@ -23,7 +23,7 @@ function securityHeaders(req, res, next) {
   if (config.nodeEnv === 'production') {
     res.setHeader(
       'Strict-Transport-Security',
-      'max-age=31536000; includeSubDomains; preload'
+      'max-age=31536000; includeSubDomains; preload',
     );
   }
 
@@ -38,7 +38,7 @@ function securityHeaders(req, res, next) {
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'", // unsafe-inline needed for some frameworks
     "connect-src 'self'",
-    "upgrade-insecure-requests",
+    'upgrade-insecure-requests',
   ];
   res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
 
@@ -71,7 +71,7 @@ function securityHeaders(req, res, next) {
 
 // Secure CORS configuration
 function corsHandler(req, res, next) {
-  const origin = req.headers.origin;
+  const { origin } = req.headers;
 
   // Whitelist of allowed origins
   const allowedOrigins = getAllowedOrigins();
@@ -105,7 +105,7 @@ function getAllowedOrigins() {
     // In production, read from environment variable
     const originsEnv = process.env.ALLOWED_ORIGINS;
     if (originsEnv) {
-      return originsEnv.split(',').map(o => o.trim()).filter(Boolean);
+      return originsEnv.split(',').map((o) => o.trim()).filter(Boolean);
     }
     // Default production origins - should be configured via env var
     return [];

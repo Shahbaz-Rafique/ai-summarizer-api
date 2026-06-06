@@ -1,0 +1,347 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+# Cancel in-progress runs when a new workflow with the same group name is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # Job 1: Lint
+  # ============================================================================
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check for linting errors
+        if: failure()
+        run: |
+          echo "::error::Linting failed. Run 'npm run lint:fix' locally to fix auto-fixable issues."
+          exit 1
+
+  # ============================================================================
+  # Job 2: Test with Coverage
+  # ============================================================================
+  test:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+
+      - name: Check coverage threshold (80%)
+        run: |
+          # Extract coverage percentage from Jest output
+          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+          echo "Current coverage: $COVERAGE%"
+
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "::error::Coverage is below 80% (current: $COVERAGE%)"
+            echo "::error::Please add tests to increase coverage above 80%"
+            exit 1
+          else
+            echo "::notice::Coverage check passed ($COVERAGE% >= 80%)"
+          fi
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const total = coverage.total;
+
+            const comment = `## 📊 Test Coverage Report
+
+            | Metric | Coverage | Status |
+            |--------|----------|--------|
+            | **Lines** | ${total.lines.pct}% | ${total.lines.pct >= 80 ? '✅' : '❌'} |
+            | **Statements** | ${total.statements.pct}% | ${total.statements.pct >= 80 ? '✅' : '❌'} |
+            | **Functions** | ${total.functions.pct}% | ${total.functions.pct >= 80 ? '✅' : '❌'} |
+            | **Branches** | ${total.branches.pct}% | ${total.branches.pct >= 80 ? '✅' : '❌'} |
+
+            **Threshold**: 80%
+            ${total.lines.pct >= 80 ? '✅ Coverage check passed!' : '❌ Coverage below threshold!'}
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # ============================================================================
+  # Job 3: Security Audit
+  # ============================================================================
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+  # ============================================================================
+  # Job 4: Build Docker Image
+  # ============================================================================
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ai-summarizer-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+
+      - name: Test Docker image
+        run: |
+          # Start container
+          docker run -d \
+            --name test-container \
+            -p 3000:3000 \
+            -e ANTHROPIC_API_KEY=test-key \
+            ai-summarizer-api:${{ github.sha }}
+
+          # Wait for container to be healthy
+          echo "Waiting for container to be healthy..."
+          for i in {1..30}; do
+            if [ "$(docker inspect --format='{{.State.Health.Status}}' test-container)" = "healthy" ]; then
+              echo "Container is healthy!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+          # Check if healthy
+          HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' test-container)
+          if [ "$HEALTH_STATUS" != "healthy" ]; then
+            echo "::error::Container failed health check"
+            docker logs test-container
+            exit 1
+          fi
+
+          # Test health endpoint
+          HEALTH_RESPONSE=$(curl -s http://localhost:3000/health)
+          echo "Health response: $HEALTH_RESPONSE"
+
+          if ! echo "$HEALTH_RESPONSE" | grep -q '"status":"healthy"'; then
+            echo "::error::Health endpoint returned unexpected response"
+            exit 1
+          fi
+
+          echo "::notice::Docker image test passed!"
+
+          # Cleanup
+          docker stop test-container
+          docker rm test-container
+
+      - name: Get image size
+        run: |
+          IMAGE_SIZE=$(docker images ai-summarizer-api:${{ github.sha }} --format "{{.Size}}")
+          echo "Image size: $IMAGE_SIZE"
+          echo "IMAGE_SIZE=$IMAGE_SIZE" >> $GITHUB_ENV
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ai-summarizer-api:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Comment image info on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `## 🐳 Docker Build Report
+
+            ✅ Docker image built successfully!
+
+            **Image Details:**
+            - Tag: \`ai-summarizer-api:${{ github.sha }}\`
+            - Size: \`${{ env.IMAGE_SIZE }}\`
+            - Health Check: ✅ Passed
+            - Security Scan: ✅ Completed (see Security tab for details)
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # ============================================================================
+  # Job 5: Integration Tests (Optional, only on main branch)
+  # ============================================================================
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start services with Docker Compose
+        run: docker-compose up -d
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for API to be ready..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3000/health | grep -q "healthy"; then
+              echo "API is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run integration tests
+        run: npm test -- __tests__/integration/
+        env:
+          API_BASE_URL: http://localhost:3000
+
+      - name: Stop services
+        if: always()
+        run: docker-compose down
+
+  # ============================================================================
+  # Job 6: Build Summary
+  # ============================================================================
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [lint, test, security, docker-build]
+    if: always()
+
+    steps:
+      - name: Check job statuses
+        run: |
+          echo "## 🚀 CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test & Coverage | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Audit | ${{ needs.security.result == 'success' && '✅ Passed' || '⚠️ Warning' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build | ${{ needs.docker-build.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.docker-build.result }}" != "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Pipeline Failed** - Please fix the errors above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **All Checks Passed!**" >> $GITHUB_STEP_SUMMARY
+          fi

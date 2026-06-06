@@ -100,7 +100,7 @@ describe('ClaudeClient', () => {
         }),
         expect.objectContaining({
           signal: expect.any(AbortSignal),
-        })
+        }),
       );
     });
 
@@ -241,7 +241,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(rateLimitError);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        RateLimitError
+        RateLimitError,
       );
 
       expect(mockCreate).toHaveBeenCalledTimes(4); // Initial + 3 retries
@@ -254,7 +254,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(badRequestError);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        InvalidRequestError
+        InvalidRequestError,
       );
 
       expect(mockCreate).toHaveBeenCalledTimes(1); // No retries
@@ -267,7 +267,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(timeoutError);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        TimeoutError
+        TimeoutError,
       );
 
       expect(mockCreate).toHaveBeenCalledTimes(4); // Initial + 3 retries
@@ -278,18 +278,16 @@ describe('ClaudeClient', () => {
     test('should timeout after 30 seconds', async () => {
       jest.useFakeTimers();
 
-      mockCreate.mockImplementation(() => {
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({
-              content: [{ text: 'Too slow' }],
-              usage: { input_tokens: 50, output_tokens: 20 },
-              model: 'claude-sonnet-4-6',
-              stop_reason: 'end_turn',
-            });
-          }, 35000); // 35 seconds - longer than timeout
-        });
-      });
+      mockCreate.mockImplementation(() => new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            content: [{ text: 'Too slow' }],
+            usage: { input_tokens: 50, output_tokens: 20 },
+            model: 'claude-sonnet-4-6',
+            stop_reason: 'end_turn',
+          });
+        }, 35000); // 35 seconds - longer than timeout
+      }));
 
       const promise = claudeClient.summarize('Test text');
 
@@ -308,7 +306,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(abortError);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        TimeoutError
+        TimeoutError,
       );
     });
   });
@@ -320,7 +318,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(error);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        RateLimitError
+        RateLimitError,
       );
     });
 
@@ -330,7 +328,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(error);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        ServiceOverloadedError
+        ServiceOverloadedError,
       );
     });
 
@@ -340,7 +338,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(error);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        ServiceOverloadedError
+        ServiceOverloadedError,
       );
     });
 
@@ -350,7 +348,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(error);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        AuthenticationError
+        AuthenticationError,
       );
     });
 
@@ -360,7 +358,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(error);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        AuthenticationError
+        AuthenticationError,
       );
     });
 
@@ -370,7 +368,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(error);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        InvalidRequestError
+        InvalidRequestError,
       );
     });
 
@@ -380,7 +378,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(error);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        TimeoutError
+        TimeoutError,
       );
     });
 
@@ -390,7 +388,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(error);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        TimeoutError
+        TimeoutError,
       );
     });
 
@@ -400,7 +398,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(error);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        ClaudeAPIError
+        ClaudeAPIError,
       );
     });
 
@@ -409,7 +407,7 @@ describe('ClaudeClient', () => {
       mockCreate.mockRejectedValue(error);
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        ClaudeAPIError
+        ClaudeAPIError,
       );
     });
   });
@@ -439,7 +437,7 @@ describe('ClaudeClient', () => {
       claudeClient.circuitBreaker.lastFailureTime = Date.now();
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        /Circuit breaker is OPEN/
+        /Circuit breaker is OPEN/,
       );
 
       expect(mockCreate).not.toHaveBeenCalled();
@@ -536,7 +534,7 @@ describe('ClaudeClient', () => {
       });
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        ClaudeAPIError
+        ClaudeAPIError,
       );
     });
 
@@ -549,7 +547,7 @@ describe('ClaudeClient', () => {
       });
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        ClaudeAPIError
+        ClaudeAPIError,
       );
     });
 
@@ -562,7 +560,7 @@ describe('ClaudeClient', () => {
       });
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        ClaudeAPIError
+        ClaudeAPIError,
       );
     });
 
@@ -575,7 +573,7 @@ describe('ClaudeClient', () => {
       });
 
       await expect(claudeClient.summarize('Test text')).rejects.toThrow(
-        ClaudeAPIError
+        ClaudeAPIError,
       );
     });
   });

@@ -49,7 +49,7 @@ class CircuitBreaker {
       if (timeSinceLastFailure < this.timeout) {
         const retryAfter = Math.ceil((this.timeout - timeSinceLastFailure) / 1000);
         const error = new Error(
-          `Circuit breaker is OPEN. Retry after ${retryAfter}s`
+          `Circuit breaker is OPEN. Retry after ${retryAfter}s`,
         );
         error.code = 'CIRCUIT_BREAKER_OPEN';
         error.status = 503;

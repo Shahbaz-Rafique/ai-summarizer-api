@@ -133,7 +133,7 @@ class BatchProcessor {
    */
   async processAll(items, processor) {
     const results = await Promise.allSettled(
-      items.map((item, index) => processor(item, index))
+      items.map((item, index) => processor(item, index)),
     );
 
     const successes = [];

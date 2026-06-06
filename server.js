@@ -80,14 +80,14 @@ app.use((req, res, next) => {
 
 // Helper function to anonymize IP addresses
 function sanitizeIP(ip) {
-  if (!ip) return 'unknown';
+  if (!ip) { return 'unknown'; }
   if (ip.includes('.')) {
     const parts = ip.split('.');
     return parts.length === 4 ? `${parts[0]}.${parts[1]}.${parts[2]}.xxx` : 'unknown';
   }
   if (ip.includes(':')) {
     const parts = ip.split(':');
-    return parts.length >= 4 ? parts.slice(0, 4).join(':') + ':xxxx:xxxx:xxxx:xxxx' : 'unknown';
+    return parts.length >= 4 ? `${parts.slice(0, 4).join(':')}:xxxx:xxxx:xxxx:xxxx` : 'unknown';
   }
   return 'unknown';
 }
@@ -275,8 +275,8 @@ function startServer() {
         console.log(`🌍 Environment: ${safeConfig.nodeEnv}`);
         console.log(`🤖 Model:       ${safeConfig.anthropic.model}`);
         console.log(`🔑 API Key:     ${safeConfig.anthropic.apiKeyConfigured ? 'Configured' : 'NOT CONFIGURED'}`);
-        console.log(`⏱️  Timeout:     30 seconds`);
-        console.log(`🔄 Max Retries: 3 with exponential backoff`);
+        console.log('⏱️  Timeout:     30 seconds');
+        console.log('🔄 Max Retries: 3 with exponential backoff');
         console.log(`📊 Rate Limit:  ${safeConfig.rateLimit.maxRequests} req/${safeConfig.rateLimit.windowMs}ms`);
         console.log('='.repeat(60));
         console.log('Available Endpoints:');
@@ -304,7 +304,6 @@ function startServer() {
       // Set keep-alive timeout
       server.keepAliveTimeout = 65000;
       server.headersTimeout = 66000;
-
     } catch (error) {
       reject(error);
     }
@@ -367,16 +366,16 @@ function formatUptime(seconds) {
   const secs = Math.floor(seconds % 60);
 
   const parts = [];
-  if (days > 0) parts.push(`${days}d`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}m`);
-  if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
+  if (days > 0) { parts.push(`${days}d`); }
+  if (hours > 0) { parts.push(`${hours}h`); }
+  if (minutes > 0) { parts.push(`${minutes}m`); }
+  if (secs > 0 || parts.length === 0) { parts.push(`${secs}s`); }
 
   return parts.join(' ');
 }
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ============================================================================

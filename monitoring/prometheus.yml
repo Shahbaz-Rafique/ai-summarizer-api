@@ -1,0 +1,22 @@
+# Prometheus Configuration for AI Summarizer API
+
+global:
+  scrape_interval: 15s # Scrape targets every 15 seconds
+  evaluation_interval: 15s # Evaluate rules every 15 seconds
+  external_labels:
+    monitor: 'ai-summarizer-monitor'
+
+# Scrape configurations
+scrape_configs:
+  # AI Summarizer API metrics
+  - job_name: 'ai-summarizer-api'
+    static_configs:
+      - targets: ['api:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s # More frequent for API metrics
+    scrape_timeout: 5s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

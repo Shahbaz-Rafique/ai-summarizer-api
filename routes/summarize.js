@@ -1,4 +1,5 @@
 const express = require('express');
+
 const router = express.Router();
 const claudeClient = require('../utils/claudeClient');
 const { validateSummarizeRequest } = require('../middleware/validate');
@@ -34,7 +35,9 @@ router.post('/', validateSummarizeRequest, async (req, res, next) => {
   const startTime = Date.now();
 
   try {
-    const { text, length, format, language } = req.body;
+    const {
+      text, length, format, language,
+    } = req.body;
 
     // Log request metadata ONLY (never log user text or PII)
     console.log(JSON.stringify({
@@ -61,13 +64,13 @@ router.post('/', validateSummarizeRequest, async (req, res, next) => {
     metrics.trackSummarization(
       { length, format, language },
       duration,
-      'success'
+      'success',
     );
 
     metrics.trackTokenUsage(
       result.usage.inputTokens,
       result.usage.outputTokens,
-      result.model
+      result.model,
     );
 
     // Update circuit breaker state metric
@@ -92,14 +95,13 @@ router.post('/', validateSummarizeRequest, async (req, res, next) => {
       },
       requestId: req.id,
     });
-
   } catch (error) {
     // Track failed request
     const duration = (Date.now() - startTime) / 1000;
     metrics.trackSummarization(
       { length: req.body.length, format: req.body.format, language: req.body.language },
       duration,
-      'error'
+      'error',
     );
 
     // Track circuit breaker failures
@@ -189,7 +191,7 @@ router.post('/batch', validateBatchRequest, async (req, res, next) => {
         metrics.trackTokenUsage(
           result.usage.inputTokens,
           result.usage.outputTokens,
-          result.model
+          result.model,
         );
 
         return {
@@ -218,7 +220,7 @@ router.post('/batch', validateBatchRequest, async (req, res, next) => {
             ...data,
           })),
         },
-      }
+      },
     );
 
     const duration = Date.now() - startTime;
@@ -236,7 +238,7 @@ router.post('/batch', validateBatchRequest, async (req, res, next) => {
     metrics.trackSummarization(
       { length: 'batch', format: 'batch', language: 'batch' },
       batchDuration,
-      statusCode === 200 ? 'success' : 'partial'
+      statusCode === 200 ? 'success' : 'partial',
     );
 
     // Update circuit breaker state
@@ -257,7 +259,6 @@ router.post('/batch', validateBatchRequest, async (req, res, next) => {
       },
       requestId: req.id,
     });
-
   } catch (error) {
     const duration = Date.now() - startTime;
 
@@ -265,7 +266,7 @@ router.post('/batch', validateBatchRequest, async (req, res, next) => {
     metrics.trackSummarization(
       { length: 'batch', format: 'batch', language: 'batch' },
       duration / 1000,
-      'error'
+      'error',
     );
 
     next(error);

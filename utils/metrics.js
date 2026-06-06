@@ -137,9 +137,9 @@ function calculateCost(model, inputTokens, outputTokens) {
  */
 function mapCircuitBreakerState(state) {
   const mapping = {
-    'CLOSED': 0,
-    'HALF_OPEN': 1,
-    'OPEN': 2,
+    CLOSED: 0,
+    HALF_OPEN: 1,
+    OPEN: 2,
   };
   return mapping[state] ?? 0;
 }
@@ -171,7 +171,7 @@ function metricsMiddleware(req, res, next) {
         route,
         status_code: res.statusCode,
       },
-      duration
+      duration,
     );
   });
 

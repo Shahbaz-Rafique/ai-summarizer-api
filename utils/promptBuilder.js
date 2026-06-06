@@ -18,7 +18,7 @@ class PromptBuilder {
   buildSummarizationPrompt(text, options = {}) {
     const length = options.length || 'medium';
     const format = options.format || 'paragraph';
-    const language = options.language;
+    const { language } = options;
 
     // Get length specification
     const lengthSpec = this.getLengthSpecification(length);

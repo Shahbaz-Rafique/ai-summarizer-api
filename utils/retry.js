@@ -67,7 +67,7 @@ class RetryStrategy {
     }
 
     // Exponential backoff: delay = baseDelay * (2 ^ attempt)
-    const exponentialDelay = this.baseDelayMs * Math.pow(2, attempt);
+    const exponentialDelay = this.baseDelayMs * 2 ** attempt;
 
     // Add jitter to prevent thundering herd (random 0-1000ms)
     const jitter = Math.random() * 1000;
@@ -84,10 +84,10 @@ class RetryStrategy {
    */
   defaultShouldRetry(error) {
     // Retry on network errors
-    if (error.code === 'ETIMEDOUT' ||
-        error.code === 'ECONNABORTED' ||
-        error.code === 'ECONNRESET' ||
-        error.code === 'ENOTFOUND') {
+    if (error.code === 'ETIMEDOUT'
+        || error.code === 'ECONNABORTED'
+        || error.code === 'ECONNRESET'
+        || error.code === 'ENOTFOUND') {
       return true;
     }
 
@@ -127,7 +127,7 @@ class RetryStrategy {
    * @returns {Promise<void>}
    */
   sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 

@@ -103,13 +103,13 @@ function idempotencyMiddleware(req, res, next) {
   let statusCode = 200;
 
   // Override status() to capture status code
-  res.status = function(code) {
+  res.status = function (code) {
     statusCode = code;
     return originalStatus(code);
   };
 
   // Override json() to cache response
-  res.json = function(body) {
+  res.json = function (body) {
     // Only cache successful responses (2xx)
     if (statusCode >= 200 && statusCode < 300) {
       idempotencyStore.set(storageKey, {
@@ -137,8 +137,8 @@ function idempotencyMiddleware(req, res, next) {
  * Validate idempotency key format
  */
 function isValidIdempotencyKey(key) {
-  if (typeof key !== 'string') return false;
-  if (key.length === 0 || key.length > 255) return false;
+  if (typeof key !== 'string') { return false; }
+  if (key.length === 0 || key.length > 255) { return false; }
 
   // Check for valid characters (alphanumeric, hyphens, underscores)
   return /^[a-zA-Z0-9_-]+$/.test(key);
