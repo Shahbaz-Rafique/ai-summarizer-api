@@ -6,7 +6,7 @@
 # ============================================================================
 
 # Stage 1: Builder
-FROM node:18-alpine AS builder
+FROM node:26-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -19,7 +19,7 @@ RUN npm ci --only=production
 
 # ============================================================================
 # Stage 2: Production
-FROM node:18-alpine
+FROM node:26-alpine
 
 # Metadata
 LABEL maintainer="AI Summarizer API Team"
